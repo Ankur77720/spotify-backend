@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
-const plm = require('passport-local-mongooses')
+const plm = require('passport-local-mongoose')
 
 
 const userSchema = mongoose.Schema({
@@ -19,12 +19,6 @@ const userSchema = mongoose.Schema({
                 throw new Error('Invalid email format');
             }
         },
-    },
-    password: {
-        type: String,
-        required: true,
-        minlength: 6,
-        trim: true,
     },
     firstName: {
         type: String,
