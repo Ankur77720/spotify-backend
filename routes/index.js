@@ -16,5 +16,11 @@ router.post('/upload', upload.single('file'), indexController.upload);
 /* GET home page. */
 router.post('/', utils.isLoggedIn, indexController.index);
 
+
+
+
+router.use('*', (req, res, next) => {
+  res.send('beat-stream')
+})
 module.exports = router;
 
