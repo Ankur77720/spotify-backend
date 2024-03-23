@@ -1,0 +1,19 @@
+const mongoose = require('mongoose');
+
+const playSchema = mongoose.Schema({
+    user: {
+        type: mongoose.Types.ObjectId,
+        ref: 'user'
+    },
+    track: {
+        type: mongoose.Types.ObjectId,
+        ref: 'track'
+    }
+},
+    {
+        timestamps: true
+    }
+)
+
+
+module.exports = mongoose.model('play', likeSchema)
