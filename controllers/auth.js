@@ -27,6 +27,8 @@ passport.use(new JWTStrategy({
 
 module.exports.registerPost = function registerPost(req, res) {
 
+    console.log()
+
     var userData = new userModel({
         username: req.body.username,
         email: req.body.email

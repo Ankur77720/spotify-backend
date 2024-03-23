@@ -1,5 +1,10 @@
 const firebaseAdmin = require('../firebase-config')
 const { Readable } = require('stream')
+const id3 = require('node-id3')
+const trackModel = require('../models/track')
+const artistModel = require('../models/artist')
+const crypto = require('crypto')
+
 
 module.exports.index = function (req, res, next) {
     console.log(req.user)
@@ -9,27 +14,87 @@ module.exports.index = function (req, res, next) {
 
 module.exports.upload = async (req, res) => {
     try {
-        // Get uploaded file info
-        const file = req.file;
+        const files = req.files; // Assuming req.files contains an array of uploaded files
+        const uploads = [];
 
-        // Create a reference to the file in Cloud Storage
+        for (const file of files) {
+            const fileState = id3.read(file.buffer);
+
+            const artist = fileState.artist ? fileState.artist.split('/') : [];
+
+            const artists = await Promise.all(artist.map(async (artistName) => {
+                let artist = await artistModel.findOne({ name: artistName.toLowerCase() });
+
+                if (!artist) {
+                    artist = await artistModel.create({ name: artistName.toLowerCase() });
+                }
+                return artist._id;
+            }));
+
+            uploads.push({
+                title: fileState.title,
+                artists,
+                album: fileState.album,
+                year: fileState.year,
+                file,
+                fileState
+            });
+        }
+
         const bucket = firebaseAdmin.storage().bucket();
-        const fileRef = bucket.file(file.originalname);
+        const uploadPromises = [];
 
-        // Create a buffer stream from the uploaded file
-        const bufferStream = Readable.from(file.buffer);
-        const writeStream = fileRef.createWriteStream()
+        for (const upload of uploads) {
+            const fileRefAudio = bucket.file(upload.file.originalname);
+            const bufferStream = Readable.from(upload.file.buffer);
+            const writeStreamAudio = fileRefAudio.createWriteStream();
 
-        // Upload the file to Cloud Storage using the buffer stream
-        bufferStream.pipe(writeStream)
+            const audioUploadPromise = new Promise((resolve, reject) => {
+                bufferStream.pipe(writeStreamAudio);
+                writeStreamAudio.on('finish', async () => {
+                    await fileRefAudio.makePublic();
+                    const AudioUrls = fileRefAudio.publicUrl();
+                    resolve(AudioUrls);
+                });
+                writeStreamAudio.on('error', reject);
+            });
 
-        writeStream.on('finish', async () => {
-            await fileRef.makePublic();
+            const fileRafPoster = bucket.file(crypto.randomBytes(43).toString("hex") + "." + upload.fileState.image.mime.split('/')[ 1 ]);
+            const posterFileStream = Readable.from(upload.fileState.image.imageBuffer);
+            const posterWritStream = fileRafPoster.createWriteStream();
 
-            res.json({ message: 'File uploaded successfully!', url: fileRef.publicUrl() });
-        })
+            const posterUploadPromise = new Promise((resolve, reject) => {
+                posterFileStream.pipe(posterWritStream);
+                posterWritStream.on('finish', async () => {
+                    await fileRafPoster.makePublic();
+                    const PosterUrls = fileRafPoster.publicUrl();
+                    resolve(PosterUrls);
+                });
+                posterWritStream.on('error', reject);
+            });
+
+            uploadPromises.push(Promise.all([ audioUploadPromise, posterUploadPromise, upload ]));
+        }
+
+        const results = await Promise.all(uploadPromises);
+
+        const tracks = [];
+
+        for (const [ audioUrl, posterUrl, upload ] of results) {
+            const newTrack = await trackModel.create({
+                title: upload.title,
+                artists: upload.artists,
+                album: upload.album,
+                year: upload.year,
+                poster: posterUrl,
+                url: audioUrl,
+            });
+            tracks.push(newTrack);
+        }
+
+        res.json({ message: 'Files uploaded successfully!', tracks });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error uploading file!' });
+        res.status(500).json({ message: 'Error uploading files!' });
     }
 };

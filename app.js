@@ -65,6 +65,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', indexRouter);
 app.use('/auth', authRouter);
 
+app.use('*', (req, res, next) => {
+    res.send('beat-stream')
+})
 
 
 module.exports = app;

@@ -9,7 +9,4 @@ router.post("/login", authController.loginPost)
 
 
 
-router.use('*', (req, res, next) => {
-    res.send('beat-stream')
-})
 module.exports = router;

@@ -11,16 +11,12 @@ const upload = multer({ storage: storage })
 
 
 
-router.post('/upload', upload.single('file'), indexController.upload);
+router.post('/upload', utils.isLoggedIn, upload.array('file'), indexController.upload);
 
-/* GET home page. */
 router.post('/', utils.isLoggedIn, indexController.index);
 
 
 
 
-router.use('*', (req, res, next) => {
-  res.send('beat-stream')
-})
 module.exports = router;
 

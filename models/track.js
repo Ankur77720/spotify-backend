@@ -7,18 +7,13 @@ const trackSchema = mongoose.Schema({
         required: true,
         trim: true,
     },
-    artist: {
+    artists: [ {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'artist',
         required: true,
-    },
+    } ],
     album: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'album',
-        required: true,
-    },
-    duration: { // In milliseconds
-        type: Number,
+        type: String,
         required: true,
     },
     year: {
