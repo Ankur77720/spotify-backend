@@ -20,6 +20,11 @@ const userSchema = mongoose.Schema({
             }
         },
     },
+
+    accessLevel: {
+        type: Number,
+        default: 1
+    },
     firstName: {
         type: String,
         trim: true,
