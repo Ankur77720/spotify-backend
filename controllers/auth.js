@@ -27,7 +27,7 @@ passport.use(new JWTStrategy({
 
 module.exports.registerPost = function registerPost(req, res) {
 
-    console.log()
+    console.log(req.body)
 
     var userData = new userModel({
         username: req.body.username,
@@ -37,6 +37,7 @@ module.exports.registerPost = function registerPost(req, res) {
         .then(function (registeredUser) {
             passport.authenticate('local')(req, res, function () {
                 const token = jwt.sign({ _id: registeredUser._id }, process.env.JWT_SECRET); // Create JWT token
+                res.cookie('token', token);
                 res.status(200).json({
                     message: 'registered successfully',
                     user: registeredUser,
@@ -78,4 +79,23 @@ module.exports.loginPost = function loginPost(req, res) {
         });
     })(req, res);
 };
+
+module.exports.isAuthenticated = async function (req, res, next) {
+    const token = req.headers.authorization ? req.headers.authorization.split(' ')[ 1 ] : null;
+    if (token) {
+        // Verify the JWT token
+        jwt.verify(token, process.env.JWT_SECRET, function (err, decoded) {
+            if (err) {
+                // If token verification fails, return an error response
+                return res.status(200).json({ isAuthenticated: false });
+            } else {
+                // If token verification succeeds, continue to the next middleware
+                return res.status(200).json({ isAuthenticated: true })
+            }
+        });
+    } else {
+        // If no token is provided, return an error response
+        return res.status(200).json({ isAuthenticated: false });
+    }
+}
 

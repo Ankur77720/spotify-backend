@@ -10,6 +10,8 @@ const passportJWT = require('passport-jwt');
 const userModel = require('./models/user');
 const db = require('./db/db')
 const MongoStore = require('connect-mongo');
+const cors = require('cors')
+
 
 // Configure express-session to use connect-mongo
 const mongoStore = MongoStore.create({
@@ -18,6 +20,10 @@ const mongoStore = MongoStore.create({
 });
 
 const app = express()
+
+app.use(cors({
+    credentials: true,
+}))
 
 app.use(
     ExpressSession({

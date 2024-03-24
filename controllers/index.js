@@ -7,7 +7,7 @@ const crypto = require('crypto')
 
 
 module.exports.index = function (req, res, next) {
-    console.log(req.user)
+    console.log(req.cookies)
     res.status(200).json({ message: "spotify" })
 }
 
