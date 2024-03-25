@@ -136,3 +136,32 @@ module.exports.createHistory = async (req, res) => {
 };
 
 
+
+
+
+module.exports.getRandomTracks = async (req, res) => {
+    try {
+        let tracks = await trackModel.aggregate([
+            { $sample: { size: 20 } }, // Sample 20 documents
+            {
+                $lookup: {
+                    from: "artists", // Assuming the collection name for artists is "artists"
+                    localField: "artists",
+                    foreignField: "_id",
+                    as: "artistDetails"
+                }
+            },
+            {
+                $addFields: {
+                    artists: "$artistDetails" // Replace the artists array with the fetched artist details
+                }
+            },
+            { $unset: "artistDetails" } // Remove the temporary field created for artist details
+        ]);
+
+        res.json({ message: 'Random tracks retrieved successfully!', tracks });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error retrieving random tracks!' });
+    }
+};
