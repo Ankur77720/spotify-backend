@@ -14,6 +14,7 @@ const upload = multer({ storage: storage })
 router.post('/upload', utils.isLoggedIn, upload.array('file'), indexController.upload);
 
 router.post('/', utils.isLoggedIn, indexController.index);
+router.post('/getTracks', utils.isLoggedIn, indexController.getRandomTracks);
 
 
 
