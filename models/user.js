@@ -20,7 +20,6 @@ const userSchema = mongoose.Schema({
             }
         },
     },
-
     accessLevel: {
         type: Number,
         default: 1
@@ -52,7 +51,7 @@ const userSchema = mongoose.Schema({
     },
     devices: [ {
         type: String
-    } ]
+    } ],
 },
     {
         timestamps: true, // Include createdAt and updatedAt for record keeping

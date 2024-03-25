@@ -98,3 +98,41 @@ module.exports.upload = async (req, res) => {
         res.status(500).json({ message: 'Error uploading files!' });
     }
 };
+
+
+module.exports.createHistory = async (req, res) => {
+    try {
+        const trackId = req.body.trackId;
+        const userId = req.user._id;
+
+        if (!trackId) {
+            return res.status(400).json({ message: 'Track ID is required!' });
+        }
+
+
+        let history = await historyModel.findOne({
+            userId,
+            trackId,
+        });
+
+        if (history) {
+            // If the history document exists, update the 'looped' field
+            history.looped = history.looped + 1;
+            await history.save();
+        } else {
+            // If the history document doesn't exist, create a new one
+            history = await historyModel.create({
+                userId,
+                trackId,
+                looped: 1,
+            });
+        }
+
+        res.json({ message: 'History updated successfully!', history });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error updating history!' });
+    }
+};
+
+

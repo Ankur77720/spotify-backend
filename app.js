@@ -76,4 +76,19 @@ app.use('*', (req, res, next) => {
 })
 
 
+
+process.on('uncaughtException', (err) => {
+    console.log('Uncaught exception:', err);
+    /* send email to admins */
+});
+
+process.on('unhandledRejection', (err) => {
+    console.log('Unhandled rejection:', err);
+    /* send email to admins */
+});
+
+
+
+
+
 module.exports = app;

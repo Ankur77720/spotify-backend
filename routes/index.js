@@ -15,6 +15,8 @@ router.post('/upload', utils.isLoggedIn, upload.array('file'), indexController.u
 
 router.post('/', utils.isLoggedIn, indexController.index);
 
+router.put('/history', utils.isLoggedIn, indexController.createHistory);
+
 
 
 
