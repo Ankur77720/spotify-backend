@@ -4,6 +4,8 @@ const id3 = require('node-id3')
 const trackModel = require('../models/track')
 const artistModel = require('../models/artist')
 const crypto = require('crypto')
+const likeModel = require('../models/like')
+const userModel = require('../models/user')
 
 
 module.exports.index = function (req, res, next) {
@@ -136,9 +138,6 @@ module.exports.createHistory = async (req, res) => {
 };
 
 
-
-
-
 module.exports.getRandomTracks = async (req, res) => {
     try {
         let tracks = await trackModel.aggregate([
@@ -165,3 +164,57 @@ module.exports.getRandomTracks = async (req, res) => {
         res.status(500).json({ message: 'Error retrieving random tracks!' });
     }
 };
+
+module.exports.likeTrack = async (req, res) => {
+    try {
+        const trackId = req.body.trackId;
+        const userId = req.user._id;
+        if (!trackId) {
+            return res.status(400).json({ message: 'Track ID is required!' });
+        }
+        const track = await trackModel.findById(trackId);
+        if (!track) {
+            return res.status(404).json({ message: 'Track not found!' });
+        }
+        const user = await userModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found!' });
+        }
+        if (user.likedTracks.includes(trackId)) {
+            await likeModel.deleteOne({ user: userId, track: trackId });
+            return res.status(200).json({ message: 'Track already liked!', isLiked: false });
+        }
+        const newLike = await likeModel.create({
+            user: userId,
+            track: trackId,
+        });
+        res.status(200).json({ message: 'Track liked successfully!', isLiked: true });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error liking track!' });
+    }
+};
+
+module.exports.checkLike = async (req, res) => {
+    try {
+        const trackId = req.body.trackId;
+        const userId = req.user._id;
+        if (!trackId) {
+            return res.status(400).json({ message: 'Track ID is required!' });
+        }
+        const track = await trackModel.findById(trackId);
+        if (!track) {
+            return res.status(404).json({ message: 'Track not found!' });
+        }
+        const user = await userModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found!' });
+        }
+        const like = await likeModel.findOne({ user: userId, track: trackId });
+        res.status(200).json({ message: 'Like checked successfully!', isLiked: !!like });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error checking like!' });
+    }
+}
