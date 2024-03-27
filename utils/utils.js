@@ -4,8 +4,6 @@ const userModel = require('../models/user');
 module.exports.isLoggedIn = function isLoggedIn(req, res, next) {
 
     const token = req.headers.authorization ? req.headers.authorization.split(' ')[ 1 ] : null;
-
-
     if (token) {
         // Verify the JWT token
         jwt.verify(token, process.env.JWT_SECRET, async function (err, decoded) {
@@ -14,8 +12,11 @@ module.exports.isLoggedIn = function isLoggedIn(req, res, next) {
                 return res.status(401).json({ message: 'Unauthorized' });
             } else {
                 req.user = await userModel.findById(decoded._id);
+                if (req.user) {
+                    return next();
+                }
                 // If token verification succeeds, continue to the next middleware
-                return next();
+                return res.status(401).json({ message: 'Unauthorized' });
             }
         });
     } else {

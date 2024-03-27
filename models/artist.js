@@ -14,6 +14,7 @@ const artistSchema = mongoose.Schema({
     },
     imageUrl: {
         type: String,
+        default: "https://firebasestorage.googleapis.com/v0/b/beat-stream.appspot.com/o/user.png?alt=media&token=928d9690-b6f3-47f9-a570-3a228a4eb767"
     },
     genres: {
         type: [ { type: String } ],

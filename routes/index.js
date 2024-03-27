@@ -8,15 +8,14 @@ const indexController = require('../controllers/index')
 // Configure Multer for file uploads
 const storage = multer.memoryStorage()
 const upload = multer({ storage: storage })
-router.use(utils.isLoggedIn);
 
-router.post('/upload', upload.array('file'), indexController.upload);
-router.post('/', indexController.index);
-router.post('/getTracks', indexController.getRandomTracks);
-router.put('/history', indexController.createHistory);
-router.post('/like', indexController.likeTrack);
-router.post('/checkLike', indexController.checkLike);
-
+router.post('/upload', utils.isLoggedIn, upload.array('file'), indexController.upload);
+router.post('/', utils.isLoggedIn, indexController.index);
+router.post('/getTracks', utils.isLoggedIn, indexController.getRandomTracks);
+router.put('/history', utils.isLoggedIn, indexController.createHistory);
+router.post('/like', utils.isLoggedIn, indexController.likeTrack);
+router.post('/checkLike', utils.isLoggedIn, indexController.checkLike);
+router.post('/getLastTrack', utils.isLoggedIn, indexController.getLastTrack);
 
 
 

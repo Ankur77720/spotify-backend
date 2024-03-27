@@ -6,6 +6,7 @@ const artistModel = require('../models/artist')
 const crypto = require('crypto')
 const likeModel = require('../models/like')
 const userModel = require('../models/user')
+const historyModel = require('../models/history')
 
 
 module.exports.index = function (req, res, next) {
@@ -107,6 +108,7 @@ module.exports.createHistory = async (req, res) => {
         const trackId = req.body.trackId;
         const userId = req.user._id;
 
+
         if (!trackId) {
             return res.status(400).json({ message: 'Track ID is required!' });
         }
@@ -130,6 +132,7 @@ module.exports.createHistory = async (req, res) => {
             });
         }
 
+        console.log(history)
         res.json({ message: 'History updated successfully!', history });
     } catch (error) {
         console.error(error);
@@ -218,3 +221,27 @@ module.exports.checkLike = async (req, res) => {
         res.status(500).json({ message: 'Error checking like!' });
     }
 }
+
+module.exports.getLastTrack = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const history = await historyModel.findOne({ userId })
+            .populate('trackId')
+            .populate({
+                path: 'trackId',
+                populate: {
+                    path: 'artists',
+                    model: 'artist'
+                }
+            })
+            .sort({ createdAt: -1 })
+
+        if (!history) {
+            return res.status(404).json({ message: 'No history found!' });
+        }
+        res.status(200).json({ message: 'Last track retrieved successfully!', track: history });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error retrieving last track!' });
+    }
+};
