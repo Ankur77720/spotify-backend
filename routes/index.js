@@ -16,6 +16,10 @@ router.put('/history', utils.isLoggedIn, indexController.createHistory);
 router.post('/like', utils.isLoggedIn, indexController.likeTrack);
 router.post('/checkLike', utils.isLoggedIn, indexController.checkLike);
 router.post('/getLastTrack', utils.isLoggedIn, indexController.getLastTrack);
+router.post('/getLastTracks', utils.isLoggedIn, indexController.getLastTracks);
+router.post('/getArtists', utils.isLoggedIn, indexController.getArtists);
+router.post('/getArtistTracks', utils.isLoggedIn, indexController.getArtistTracks);
+router.post('/search', utils.isLoggedIn, indexController.search);
 
 
 

@@ -48,35 +48,38 @@ module.exports.upload = async (req, res) => {
         const uploadPromises = [];
 
         for (const upload of uploads) {
-            const fileRefAudio = bucket.file(upload.file.originalname);
-            const bufferStream = Readable.from(upload.file.buffer);
-            const writeStreamAudio = fileRefAudio.createWriteStream();
-
-            const audioUploadPromise = new Promise((resolve, reject) => {
-                bufferStream.pipe(writeStreamAudio);
-                writeStreamAudio.on('finish', async () => {
-                    await fileRefAudio.makePublic();
-                    const AudioUrls = fileRefAudio.publicUrl();
-                    resolve(AudioUrls);
+            const existingTrack = await trackModel.findOne({ title: upload.title });
+            if (!existingTrack) {
+                const fileRefAudio = bucket.file(upload.file.originalname);
+                const bufferStream = Readable.from(upload.file.buffer);
+                const writeStreamAudio = fileRefAudio.createWriteStream();
+                const audioUploadPromise = new Promise((resolve, reject) => {
+                    bufferStream.pipe(writeStreamAudio);
+                    writeStreamAudio.on('finish', async () => {
+                        await fileRefAudio.makePublic();
+                        const AudioUrls = fileRefAudio.publicUrl();
+                        resolve(AudioUrls);
+                    });
+                    writeStreamAudio.on('error', reject);
                 });
-                writeStreamAudio.on('error', reject);
-            });
+                const fileRafPoster = bucket.file(crypto.randomBytes(43).toString("hex") + "." + upload.fileState.image.mime.split('/')[ 1 ]);
+                const posterFileStream = Readable.from(upload.fileState.image.imageBuffer);
+                const posterWritStream = fileRafPoster.createWriteStream();
 
-            const fileRafPoster = bucket.file(crypto.randomBytes(43).toString("hex") + "." + upload.fileState.image.mime.split('/')[ 1 ]);
-            const posterFileStream = Readable.from(upload.fileState.image.imageBuffer);
-            const posterWritStream = fileRafPoster.createWriteStream();
-
-            const posterUploadPromise = new Promise((resolve, reject) => {
-                posterFileStream.pipe(posterWritStream);
-                posterWritStream.on('finish', async () => {
-                    await fileRafPoster.makePublic();
-                    const PosterUrls = fileRafPoster.publicUrl();
-                    resolve(PosterUrls);
+                const posterUploadPromise = new Promise((resolve, reject) => {
+                    posterFileStream.pipe(posterWritStream);
+                    posterWritStream.on('finish', async () => {
+                        await fileRafPoster.makePublic();
+                        const PosterUrls = fileRafPoster.publicUrl();
+                        resolve(PosterUrls);
+                    });
+                    posterWritStream.on('error', reject);
                 });
-                posterWritStream.on('error', reject);
-            });
 
-            uploadPromises.push(Promise.all([ audioUploadPromise, posterUploadPromise, upload ]));
+                uploadPromises.push(Promise.all([ audioUploadPromise, posterUploadPromise, upload ]));
+            } else {
+                console.log(`Track with title "${upload.title}" already exists. Skipping upload.`);
+            }
         }
 
         const results = await Promise.all(uploadPromises);
@@ -84,15 +87,22 @@ module.exports.upload = async (req, res) => {
         const tracks = [];
 
         for (const [ audioUrl, posterUrl, upload ] of results) {
-            const newTrack = await trackModel.create({
-                title: upload.title,
-                artists: upload.artists,
-                album: upload.album,
-                year: upload.year,
-                poster: posterUrl,
-                url: audioUrl,
-            });
-            tracks.push(newTrack);
+            // Check if a track with the same title already exists
+            const existingTrack = await trackModel.findOne({ title: upload.title });
+
+            if (!existingTrack) {
+                const newTrack = await trackModel.create({
+                    title: upload.title,
+                    artists: upload.artists,
+                    album: upload.album,
+                    year: upload.year,
+                    poster: posterUrl,
+                    url: audioUrl,
+                });
+                tracks.push(newTrack);
+            } else {
+                console.log(`Track with title "${upload.title}" already exists. Skipping upload.`);
+            }
         }
 
         res.json({ message: 'Files uploaded successfully!', tracks });
@@ -121,18 +131,16 @@ module.exports.createHistory = async (req, res) => {
 
         if (history) {
             // If the history document exists, update the 'looped' field
-            history.looped = history.looped + 1;
+            history.repeat = history.repeat + 1;
             await history.save();
         } else {
             // If the history document doesn't exist, create a new one
             history = await historyModel.create({
                 userId,
                 trackId,
-                looped: 1,
+                repeat: 1,
             });
         }
-
-        console.log(history)
         res.json({ message: 'History updated successfully!', history });
     } catch (error) {
         console.error(error);
@@ -144,22 +152,34 @@ module.exports.createHistory = async (req, res) => {
 module.exports.getRandomTracks = async (req, res) => {
     try {
         let tracks = await trackModel.aggregate([
-            { $sample: { size: 20 } }, // Sample 20 documents
+            { $sample: { size: 20 } },
             {
                 $lookup: {
-                    from: "artists", // Assuming the collection name for artists is "artists"
+                    from: "artists",
                     localField: "artists",
                     foreignField: "_id",
                     as: "artistDetails"
                 }
             },
             {
-                $addFields: {
-                    artists: "$artistDetails" // Replace the artists array with the fetched artist details
+                $lookup: {
+                    from: "likes",
+                    let: { trackId: "$_id" },
+                    pipeline: [
+                        { $match: { $expr: { $and: [ { $eq: [ "$track", "$$trackId" ] }, { $eq: [ "$user", req.user._id ] } ] } } }
+                    ],
+                    as: "likes"
                 }
             },
-            { $unset: "artistDetails" } // Remove the temporary field created for artist details
+            {
+                $addFields: {
+                    artists: "$artistDetails",
+                    isLiked: { $anyElementTrue: "$likes" }
+                }
+            },
+            { $unset: [ "artistDetails", "likes" ] }
         ]);
+
 
         res.json({ message: 'Random tracks retrieved successfully!', tracks });
     } catch (error) {
@@ -234,14 +254,115 @@ module.exports.getLastTrack = async (req, res) => {
                     model: 'artist'
                 }
             })
-            .sort({ createdAt: -1 })
+            .sort({ updatedAt: -1 })
 
         if (!history) {
             return res.status(404).json({ message: 'No history found!' });
         }
+
+        console.log(history)
+
         res.status(200).json({ message: 'Last track retrieved successfully!', track: history });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error retrieving last track!' });
     }
 };
+
+module.exports.getLastTracks = async (req, res) => {
+    try {
+        let userId = req.user._id; // Assuming the user's ID is available in req.user._id
+
+        let history = await trackModel.aggregate([
+            {
+                $lookup: {
+                    from: "histories",
+                    localField: "_id",
+                    foreignField: "trackId",
+                    as: "history"
+                }
+            },
+            { $match: { "history.userId": userId } },
+            { $sort: { "history.updatedAt": -1 } },
+            { $limit: 6 },
+            {
+                $lookup: {
+                    from: "artists",
+                    localField: "artists",
+                    foreignField: "_id",
+                    as: "artistDetails"
+                }
+            },
+            {
+                $lookup: {
+                    from: "likes",
+                    let: { trackId: "$_id" },
+                    pipeline: [
+                        { $match: { $expr: { $and: [ { $eq: [ "$track", "$$trackId" ] }, { $eq: [ "$user", userId ] } ] } } }
+                    ],
+                    as: "likes"
+                }
+            },
+            {
+                $addFields: {
+                    artists: "$artistDetails",
+                    isLiked: { $anyElementTrue: "$likes" }
+                }
+            },
+            { $unset: [ "artistDetails", "likes" ] }
+        ]);
+
+
+
+        if (!history) {
+            return res.status(404).json({ message: 'No history found!' });
+        }
+
+        res.status(200).json({ message: 'Last six tracks retrieved successfully!', tracks: history });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error retrieving last six tracks!' });
+    }
+}
+
+
+module.exports.getArtists = async (req, res) => {
+    try {
+        let artists = await artistModel.aggregate([
+            { $sample: { size: 6 } }
+        ]);
+
+        res.json({ message: 'Random artists retrieved successfully!', artists });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error retrieving random artists!' });
+    }
+}
+
+module.exports.getArtistTracks = async (req, res) => {
+    try {
+        let artistId = req.body.artistId;
+        let tracks = await trackModel.find({ artists: artistId });
+
+        res.json({ message: 'Artist tracks retrieved successfully!', tracks });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error retrieving artist tracks!' });
+    }
+}
+
+
+module.exports.search = async (req, res) => {
+    try {
+        let search = req.body.search;
+        let tracks = await trackModel.find(
+            { $text: { $search: search } },
+            { score: { $meta: "textScore" } }
+        ).sort({ score: { $meta: "textScore" } });
+
+        res.json({ message: 'Search results retrieved successfully!', tracks });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error retrieving search results!' });
+    }
+}

@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Define the directory where your music files are located
-const directory = '/Users/ankurprajapati/Downloads/[SPOTIFY-DOWNLOADER.COM] Hot Hits Hindi';
+const directory = '/Users/ankurprajapati/Downloads/musics';
 
 // Read the files in the directory
 fs.readdir(directory, (err, files) => {
