@@ -51,7 +51,7 @@ const trackSchema = mongoose.Schema({
     }
 )
 
-trackSchema.index({ title: 'text', artist: 'text' });
+trackSchema.index({ title: 'text' });
 
 
 module.exports = mongoose.model('track', trackSchema)
