@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const fuzzY = require('mongoose-fuzzy-searching');
 
 
 const trackSchema = mongoose.Schema({
@@ -51,7 +52,8 @@ const trackSchema = mongoose.Schema({
     }
 )
 
-trackSchema.index({ title: 'text' });
+trackSchema.index({ title: 'text', 'artists.name': 'text' });
+trackSchema.plugin(fuzzY, { fields: [ 'title', 'artists.name' ] });
 
 
 module.exports = mongoose.model('track', trackSchema)

@@ -355,10 +355,19 @@ module.exports.getArtistTracks = async (req, res) => {
 module.exports.search = async (req, res) => {
     try {
         let search = req.body.search;
+
+        
         let tracks = await trackModel.find(
             { $text: { $search: search } },
             { score: { $meta: "textScore" } }
-        ).sort({ score: { $meta: "textScore" } });
+        ).sort(
+            { score: { $meta: "textScore" } }
+        ).limit(10).populate('artists');
+
+
+
+        console.log(tracks, search)
+
 
         res.json({ message: 'Search results retrieved successfully!', tracks });
     } catch (error) {
