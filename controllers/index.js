@@ -355,19 +355,26 @@ module.exports.getArtistTracks = async (req, res) => {
 module.exports.search = async (req, res) => {
     try {
         let search = req.body.search;
+        if (!search)
+            return res.status(400).json({ message: 'Search query is required!' });
 
-        
+        let minTracks = 7; // Set your minimum number of tracks here
+
         let tracks = await trackModel.find(
             { $text: { $search: search } },
             { score: { $meta: "textScore" } }
         ).sort(
             { score: { $meta: "textScore" } }
-        ).limit(10).populate('artists');
+        ).populate('artists');
 
-
-
-        console.log(tracks, search)
-
+        if (tracks.length < minTracks) {
+            let trackIds = tracks.map(track => track._id); // Get the IDs of the initially found tracks
+            let additionalTracks = await trackModel.find({
+                title: { $regex: search, $options: 'i' },
+                _id: { $nin: trackIds } // Exclude the initially found tracks
+            }).limit(minTracks - tracks.length).populate('artists');
+            tracks = tracks.concat(additionalTracks);
+        }
 
         res.json({ message: 'Search results retrieved successfully!', tracks });
     } catch (error) {
